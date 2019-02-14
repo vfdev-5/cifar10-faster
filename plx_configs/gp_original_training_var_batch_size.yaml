@@ -1,0 +1,45 @@
+---
+version: 1
+
+kind: group
+
+environment:
+  resources:
+      gpu:
+        requests: 1
+        limits: 1
+
+build:
+  image: vfdev5/mii-dockerfiles:latest
+  build_steps: 
+  - pip install --no-cache --no-deps --upgrade git+https://github.com/pytorch/ignite.git
+
+
+hptuning:
+  concurrency: 2
+  matrix:
+    batch_size:
+      values: [256, 368, 512, 768]
+    lr: 
+      values: [0.1, 0.2, 0.4, 0.5]
+
+
+
+declarations:
+  data_path: "/data/ssd/cifar10"
+
+
+run:
+  cmd:  
+    - export PATH=$PATH:/usr/local/nvidia/bin && nvidia-smi
+    - python -u code/main.py --use_tb_logger --params data_path="{{ data_path }}" seed=17 num_epochs=24 \
+        batch_size={{ batch_size }} \
+        lr_param_group_0="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_1="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_2="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_3="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_4="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_5="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_6="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_7="[0.0, {{ lr }}, 4, 0]" \
+        lr_param_group_8="[0.0, {{ lr }}, 4, 0]"

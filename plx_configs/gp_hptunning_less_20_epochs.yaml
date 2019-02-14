@@ -1,0 +1,133 @@
+---
+version: 1
+
+kind: group
+
+environment:
+  resources:
+      gpu:
+        requests: 1
+        limits: 1
+
+build:
+  image: vfdev5/mii-dockerfiles:latest
+  build_steps: 
+  - pip install --no-cache --no-deps --upgrade git+https://github.com/pytorch/ignite.git
+  - pip install tensorboard
+
+
+hptuning:
+  concurrency: 1
+
+  hyperband:
+    max_iter: 500
+    eta: 3
+    resource:
+      name: num_steps
+      type: int
+    metric:
+      name: test_accuracy
+      optimization: maximize
+    resume: False
+
+  matrix:
+    lr_param_group_0_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_0_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_0_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_0_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_1_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_1_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_1_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_1_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_2_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_2_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_2_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_2_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_3_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_3_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_3_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_3_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_4_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_4_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_4_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_4_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_5_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_5_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_5_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_5_4: # end lr
+      uniform: [0, 0.1]
+      
+    lr_param_group_6_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_6_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_6_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_6_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_7_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_7_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_7_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_7_4: # end lr
+      uniform: [0, 0.1]
+
+    lr_param_group_8_1: # start lr
+      uniform: [0, 1.0] 
+    lr_param_group_8_2: # peak lr
+      uniform: [1.0, 5.0] 
+    lr_param_group_8_3: # peak lr milestone
+      quniform: [0, 6, 1]
+    lr_param_group_8_4: # end lr
+      uniform: [0, 0.1]
+
+declarations:
+  data_path: /data/ssd/cifar10
+
+run:
+  cmd:  
+    - export PATH=$PATH:/usr/local/nvidia/bin && nvidia-smi
+    - export TB_LOGGER_PATH=$POLYAXON_RUN_OUTPUTS_PATH
+    - python -u code/main_hptunning.py --use_tb_logger \
+        --params data_path={{ data_path }} \
+        num_epochs=12 batch_size=512 \
+        lr_param_group_0="[{{ lr_param_group_0_1 }}, {{ lr_param_group_0_2 }}, {{ lr_param_group_0_3 }}, {{ lr_param_group_0_4 }}]" \
+        lr_param_group_1="[{{ lr_param_group_1_1 }}, {{ lr_param_group_1_2 }}, {{ lr_param_group_1_3 }}, {{ lr_param_group_1_4 }}]" \
+        lr_param_group_2="[{{ lr_param_group_2_1 }}, {{ lr_param_group_2_2 }}, {{ lr_param_group_2_3 }}, {{ lr_param_group_2_4 }}]" \
+        lr_param_group_3="[{{ lr_param_group_3_1 }}, {{ lr_param_group_3_2 }}, {{ lr_param_group_3_3 }}, {{ lr_param_group_3_4 }}]" \
+        lr_param_group_4="[{{ lr_param_group_4_1 }}, {{ lr_param_group_4_2 }}, {{ lr_param_group_4_3 }}, {{ lr_param_group_4_4 }}]" \
+        lr_param_group_5="[{{ lr_param_group_5_1 }}, {{ lr_param_group_5_2 }}, {{ lr_param_group_5_3 }}, {{ lr_param_group_5_4 }}]" \
+        lr_param_group_6="[{{ lr_param_group_6_1 }}, {{ lr_param_group_6_2 }}, {{ lr_param_group_6_3 }}, {{ lr_param_group_6_4 }}]" \
+        lr_param_group_7="[{{ lr_param_group_7_1 }}, {{ lr_param_group_7_2 }}, {{ lr_param_group_7_3 }}, {{ lr_param_group_7_4 }}]" \
+        lr_param_group_8="[{{ lr_param_group_8_1 }}, {{ lr_param_group_8_2 }}, {{ lr_param_group_8_3 }}, {{ lr_param_group_8_4 }}]"
