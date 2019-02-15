@@ -25,3 +25,12 @@ polyaxon run -u -f plx_configs/xp_original_training.yaml --name=xp_original_trai
 ```
 
 
+## Run hyperparameter tuning
+
+```
+polyaxon run -u -f plx_configs/gp_hp_bo_training.yaml --name=gp_hp_bo_training --tags=lt_20
+``` 
+or on WRN model
+```
+polyaxon run -u -f plx_configs/gp_hp_bo_training_wrn.yaml --name=gp_hp_bo_training_wrn --tags=lt_20,wrn
+```

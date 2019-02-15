@@ -136,7 +136,7 @@ def run(config, plx_experiment):
         assert key in config, "{} not in config".format(key)
         milestones_values = config[key]
         layerwise_milestones_lr_values.append(
-            [(m * num_iterations_per_epoch, v / batch_size) for m, v in milestones_values]
+            [(int(m * num_iterations_per_epoch), v / batch_size) for m, v in milestones_values]
         )
     
     lr_scheduler = get_layerwise_lr_scheduler(optimizer, layerwise_milestones_lr_values)
