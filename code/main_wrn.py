@@ -70,8 +70,9 @@ def run(config, plx_experiment):
                                                             num_workers=config['num_workers'],
                                                             device=device,
                                                             train_transforms=train_transforms)
-
-    model = config["model"](final_weight=config['final_weight'], dropout_p=config['dropout_p'])
+    width, depth = config['width'], config['depth']
+    model = config["model"](width, depth,
+                            final_weight=config['final_weight'], dropout_p=config['dropout_p'])
     model = model.to(device)
     model = model.half()
     model_name = model.__class__.__name__
@@ -264,7 +265,7 @@ def run(config, plx_experiment):
 
         evaluator.run(test_loader)
 
-    trainer.add_event_handler(Events.ITERATION_COMPLETED, lr_scheduler)
+    trainer.add_event_handler(Events.ITERATION_STARTED, lr_scheduler)
 
     @evaluator.on(Events.COMPLETED)
     def log_results(engine):
@@ -351,6 +352,8 @@ if __name__ == "__main__":
         "seed": 12,
 
         "model": FastWideResNet,
+        "width": 4, 
+        "depth": 10,
         "final_weight": 0.125,
         "dropout_p": None,
 

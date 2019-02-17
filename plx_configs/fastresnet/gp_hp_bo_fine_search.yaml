@@ -1,0 +1,145 @@
+---
+version: 1
+
+kind: group
+
+environment:
+  resources:
+      gpu:
+        requests: 1
+        limits: 1
+
+build:
+  image: vfdev5/mii-dockerfiles:latest
+  build_steps: 
+  - pip install --no-cache --no-deps --upgrade git+https://github.com/pytorch/ignite.git
+
+
+hptuning:
+  concurrency: 1
+
+  bo:
+    n_iterations: 100
+    n_initial_trials: 20
+    metric:
+      name: "test acc"
+      optimization: maximize
+    utility_function:
+          n_warmup: 5
+          n_iter: 10
+          acquisition_function: ucb
+          kappa: 1.5
+          gaussian_process:
+            kernel: matern
+            length_scale: 1.0
+            nu: 1.9
+            n_restarts_optimizer: 0
+
+  matrix:
+    final_weight:
+      uniform: [0.09, 0.15]
+
+    num_epochs:
+      values: [16, 17, 18]
+
+    enable_mixup:
+      values: ["True", "False"]
+
+    mixup_proba:
+      uniform: [0.01, 0.7]
+
+    mixup_alpha:
+      uniform: [1.0, 2.0]
+
+    lr_param_group_0_e:
+      uniform: [3, 7]
+    lr_param_group_0_v:
+      uniform: [0.2, 1.0]
+    lr_param_group_0_i:
+      uniform: [0.0, 0.1]
+
+    lr_param_group_1_e:
+      uniform: [3, 7]
+    lr_param_group_1_v:
+      uniform: [0.2, 1.0]
+    lr_param_group_1_i:
+      uniform: [0.0, 0.1]
+    
+    lr_param_group_2_e:
+      uniform: [3, 10]
+    lr_param_group_2_v:
+      uniform: [0.2, 1.0]
+    lr_param_group_2_i:
+      uniform: [0.0, 0.2]
+
+    lr_param_group_3_e:
+      uniform: [3, 7]
+    lr_param_group_3_v:
+      uniform: [1.0, 1.5]
+    lr_param_group_3_i:
+      uniform: [0.0, 0.5]
+
+    lr_param_group_4_e:
+      uniform: [3, 7]
+    lr_param_group_4_v:
+      uniform: [1.0, 1.5]
+    lr_param_group_4_i:
+      uniform: [0.0, 0.5]
+
+    lr_param_group_5_e:
+      uniform: [3, 10]
+    lr_param_group_5_v:
+      uniform: [0.2, 1.5]
+    lr_param_group_5_i:
+      uniform: [0.0, 0.2]
+
+    lr_param_group_5_e:
+      uniform: [3, 10]
+    lr_param_group_5_v:
+      uniform: [0.2, 1.0]
+    lr_param_group_5_i:
+      uniform: [0.0, 0.2]
+
+    lr_param_group_6_e:
+      uniform: [3, 7]
+    lr_param_group_6_v:
+      uniform: [1.0, 2.0]
+    lr_param_group_6_i:
+      uniform: [0.2, 0.5]
+
+    lr_param_group_7_e:
+      uniform: [3, 7]
+    lr_param_group_7_v:
+      uniform: [0.7, 1.2]
+    lr_param_group_7_i:
+      uniform: [0.1, 0.5]
+
+    lr_param_group_8_e:
+      uniform: [6, 12]
+    lr_param_group_8_v:
+      uniform: [0.8, 2.0]
+    lr_param_group_8_i:
+      uniform: [0.0, 0.1]
+
+
+declarations:
+  data_path: "/data/ssd/cifar10"  
+
+
+run:
+  cmd:
+    - export PATH=$PATH:/usr/local/nvidia/bin && nvidia-smi
+    - export TB_LOGGER_PATH=$POLYAXON_RUN_OUTPUTS_PATH
+    - python -u code/main.py --use_tb_logger --params data_path="{{ data_path }}" \
+        seed=17 num_epochs={{ num_epochs }} \
+        batch_size=512 final_weight={{ final_weight }} \
+        enable_mixup={{ enable_mixup }} mixup_proba={{ mixup_proba }} mixup_alpha={{ mixup_alpha }} \
+        lr_param_group_0="[(0, {{ lr_param_group_0_i }}), ({{ lr_param_group_0_e }}, {{ lr_param_group_0_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_1="[(0, {{ lr_param_group_1_i }}), ({{ lr_param_group_1_e }}, {{ lr_param_group_1_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_2="[(0, {{ lr_param_group_2_i }}), ({{ lr_param_group_2_e }}, {{ lr_param_group_2_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_3="[(0, {{ lr_param_group_3_i }}), ({{ lr_param_group_3_e }}, {{ lr_param_group_3_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_4="[(0, {{ lr_param_group_4_i }}), ({{ lr_param_group_4_e }}, {{ lr_param_group_4_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_5="[(0, {{ lr_param_group_5_i }}), ({{ lr_param_group_5_e }}, {{ lr_param_group_5_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_6="[(0, {{ lr_param_group_6_i }}), ({{ lr_param_group_6_e }}, {{ lr_param_group_6_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_7="[(0, {{ lr_param_group_7_i }}), ({{ lr_param_group_7_e }}, {{ lr_param_group_7_v }}), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_8="[(0, {{ lr_param_group_8_i }}), ({{ lr_param_group_8_e }}, {{ lr_param_group_8_v }}), ({{ num_epochs }}, 0.0)]"

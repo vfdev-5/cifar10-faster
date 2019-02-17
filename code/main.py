@@ -24,9 +24,7 @@ from models import FastResnet, FastWideResNet, seq_conv_bn, conv_bn_elu
 from dataflow import get_fast_train_test_loaders
 from dataflow import DynamicCrop, FlipLR, DynamicCutout
 from custom_logger import TableLogger
-from custom_schedulers import get_lr_scheduler, get_piecewise_linear_lr_scheduler, \
-    get_momentum_scheduler, get_warmup_multistep_scheduler, get_groupwise_lr_scheduler, \
-    get_layerwise_lr_scheduler
+from custom_schedulers import get_layerwise_lr_scheduler, get_layerwise_scheduler
 from mixup import mixup_data, MixupCriterion
 
 from polyaxon_client.tracking import Experiment, get_outputs_path
@@ -63,8 +61,11 @@ def run(config, plx_experiment):
     device = "cuda"
     batch_size = config['batch_size']
 
+    train_transforms=[DynamicCrop(32, 32), FlipLR()]
     cutout_size = config['cutout_size']
-    train_transforms=[DynamicCrop(32, 32), FlipLR(), DynamicCutout(cutout_size, cutout_size)]
+    if cutout_size is not None:
+        train_transforms.append(DynamicCutout(cutout_size, cutout_size))
+
     train_loader, test_loader = get_fast_train_test_loaders(path=config["data_path"],
                                                             batch_size=batch_size,
                                                             num_workers=config['num_workers'],
@@ -89,7 +90,7 @@ def run(config, plx_experiment):
 
     weight_decay = config['weight_decay']    
 
-    if not config['use_adam']:
+    if not config['use_adamw']:
         opt_kwargs = [
             ("lr", 0.0),
             ("momentum", config['momentum']),
@@ -101,9 +102,7 @@ def run(config, plx_experiment):
         opt_kwargs = [
             ("lr", 0.0),
             ("betas", (0.9, 0.999)), 
-            ("eps", 1e-08), 
-            ("amsgrad", True),
-            ("weight_decay", weight_decay),
+            ("eps", 1e-08),                  
         ]
         optimizer_cls = optim.Adam
 
@@ -140,6 +139,17 @@ def run(config, plx_experiment):
         )
     
     lr_scheduler = get_layerwise_lr_scheduler(optimizer, layerwise_milestones_lr_values)
+    
+    momentum_scheduler = None
+    if config["momentum_scheduling"] is not None:
+        milestones_values = config["momentum_scheduling"]
+        layerwise_milestones_mtm_values = []
+        for i in range(len(optimizer.param_groups)):
+            layerwise_milestones_mtm_values.append(
+                [(int(m * num_iterations_per_epoch), v) for m, v in milestones_values]
+            )        
+        momentum_scheduler = get_layerwise_scheduler(optimizer, param_name="momentum", milestones_values=layerwise_milestones_mtm_values)
+
 
     def _prepare_batch_fp16(batch, device, non_blocking):
         x, y = batch
@@ -160,6 +170,11 @@ def run(config, plx_experiment):
 
         if config["clip_gradients"] is not None:
             clip_grad_norm_(model.parameters(), config["clip_gradients"])        
+
+        if config['use_adamw']:
+            for group in optimizer.param_groups:
+                for param in group['params']:
+                    param.data.add_(-weight_decay / batch_size * group['lr'])
 
         optimizer.step()
         loss = loss.item()
@@ -272,7 +287,9 @@ def run(config, plx_experiment):
 
         evaluator.run(test_loader)
 
-    trainer.add_event_handler(Events.ITERATION_COMPLETED, lr_scheduler)
+    trainer.add_event_handler(Events.ITERATION_STARTED, lr_scheduler)
+    if momentum_scheduler is not None:
+        trainer.add_event_handler(Events.ITERATION_STARTED, momentum_scheduler)
 
     @evaluator.on(Events.COMPLETED)
     def log_results(engine):
@@ -280,7 +297,9 @@ def run(config, plx_experiment):
         metrics = evaluator.state.metrics
         output = [("epoch", trainer.state.epoch)]
         output += [(key, trainer.state.param_history[key][-1][0] * batch_size)
-                    for key in trainer.state.param_history]
+                    for key in trainer.state.param_history if "lr" in key]
+        output += [(key, trainer.state.param_history[key][-1][0])
+                    for key in trainer.state.param_history if "lr" not in key]
         output += [
             ("train time", trainer.state.train_time),
             ("train loss", trainer.state.output / batch_size),
@@ -307,16 +326,21 @@ def run(config, plx_experiment):
     
     @trainer.on(Events.COMPLETED)
     def on_training_completed(engine):
+        train_evaluator.run(train_loader)
+        metrics = train_evaluator.state.metrics
+
         if config["use_tb_logger"]:
-
-            train_evaluator.run(train_loader)
-            metrics = train_evaluator.state.metrics
-
             tb_logger.add_scalar("training/loss", metrics['loss'] / batch_size, 0)
-            tb_logger.add_scalar("training/loss", metrics['loss'] / batch_size, trainer.state.epoch)
+            tb_logger.add_scalar("training/loss", metrics['loss'] / batch_size, engine.state.epoch)
             
             tb_logger.add_scalar("training/accuracy", metrics['accuracy'], 0)
-            tb_logger.add_scalar("training/accuracy", metrics['accuracy'], trainer.state.epoch)
+            tb_logger.add_scalar("training/accuracy", metrics['accuracy'], engine.state.epoch)
+        
+        output = {
+            "train acc": metrics['accuracy'],
+            "train loss": metrics['loss'] / batch_size
+        }
+        plx_experiment.log_metrics(step=engine.state.epoch, **output)
 
     trainer.run(train_loader, max_epochs=config['num_epochs'])
 
@@ -367,6 +391,8 @@ if __name__ == "__main__":
         "momentum": 0.9,
         "weight_decay": 5e-4 * batch_size,
 
+        "momentum_scheduling": None,
+
         "batch_size": batch_size,
         "num_workers": 2,
 
@@ -385,17 +411,17 @@ if __name__ == "__main__":
         "mixup_proba": 1.0,
         "mixup_max_epochs": -1,
 
-        "use_adam": False,
+        "use_adamw": False,
 
-        "lr_param_group_0": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_1": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_2": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_3": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_4": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_5": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_6": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_7": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
-        "lr_param_group_8": [(0, 0.0), (4, 0.4), (num_epochs, 0)],
+        "lr_param_group_0": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_1": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_2": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_3": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_4": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_5": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_6": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_7": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
+        "lr_param_group_8": [(0, 0.0), (5, 0.4), (num_epochs, 0)],
     }
 
     # Override config:

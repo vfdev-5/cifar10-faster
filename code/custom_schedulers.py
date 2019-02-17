@@ -143,13 +143,31 @@ def get_layerwise_lr_scheduler(optimizer, milestones_lr_values):
     lr_schedulers = []    
     names = []
     for i, param_group in enumerate(optimizer.param_groups):
-        names.append("param_group_{}".format(i))
+        names.append("lr_group_{}".format(i))
         lr_schedulers.append(_get_lr_scheduler(param_group, milestones_lr_values[i]))
 
     return ParamGroupScheduler(
         schedulers=lr_schedulers,
         names=names
     )
+
+
+def get_layerwise_scheduler(optimizer, param_name, milestones_values):
+
+    def _get_scheduler(o, pn, mv):
+        return PiecewiseLinear(o, param_name=pn, milestones_values=mv, save_history=True)
+
+    schedulers = []
+    names = []
+    for i, param_group in enumerate(optimizer.param_groups):
+        names.append("{}_group_{}".format(param_name, i))
+        schedulers.append(_get_scheduler(param_group, param_name, milestones_values[i]))
+
+    return ParamGroupScheduler(
+        schedulers=schedulers,
+        names=names
+    )
+
 
 # #############################################################################
 # PiecewiseLinear parameter scheduler
