@@ -1,35 +1,5 @@
 import torch
 import torch.nn as nn
-
-
-def seq_conv_bn(in_channels, out_channels, conv_kwargs, bn_kwargs):
-    if "padding" not in conv_kwargs:
-        conv_kwargs["padding"] = 1
-    if "stride" not in conv_kwargs:
-        conv_kwargs["stride"] = 1
-    if "bias" not in conv_kwargs:
-        conv_kwargs["bias"] = False
-    return nn.Sequential(
-        nn.Conv2d(in_channels, out_channels,
-                  kernel_size=3, **conv_kwargs),
-        batch_norm(out_channels, **bn_kwargs),
-        nn.ReLU(inplace=True)
-    )
-
-
-def conv_bn_elu(in_channels, out_channels, conv_kwargs, bn_kwargs, alpha=1.0):
-    if "padding" not in conv_kwargs:
-        conv_kwargs["padding"] = 1
-    if "stride" not in conv_kwargs:
-        conv_kwargs["stride"] = 1
-    if "bias" not in conv_kwargs:
-        conv_kwargs["bias"] = False
-    return nn.Sequential(
-        nn.Conv2d(in_channels, out_channels,
-                  kernel_size=3, **conv_kwargs),
-        batch_norm(out_channels, **bn_kwargs),
-        nn.ELU(alpha=alpha, inplace=True)
-    )
         
 
 class FastWideResNet(nn.Module):
