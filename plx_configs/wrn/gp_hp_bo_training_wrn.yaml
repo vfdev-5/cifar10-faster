@@ -28,7 +28,7 @@ hptuning:
           n_warmup: 5
           n_iter: 10
           acquisition_function: ucb
-          kappa: 1.5
+          kappa: 1.67
           gaussian_process:
             kernel: matern
             length_scale: 1.0
@@ -37,9 +37,9 @@ hptuning:
 
   matrix:
     dropout_p:
-      values: [None, 0.3, 0.5]
+      values: [None, 0.3]
     final_weight:
-      uniform: [0.5, 2.0]
+      uniform: [0.75, 1.25]
 
     num_epochs:
       values: [16, 17, 18, 19]
@@ -74,18 +74,24 @@ hptuning:
     lr_param_group_5_v:
       uniform: [0.2, 1.5]
 
+    weight_decay: 
+      logspace: [0.0, 0.5, 10]
+
 
 declarations:
   data_path: "/data/ssd/cifar10"  
-
+  batch_size: 512  
 
 run:
   cmd:
     - export PATH=$PATH:/usr/local/nvidia/bin && nvidia-smi
     - export TB_LOGGER_PATH=$POLYAXON_RUN_OUTPUTS_PATH
     - python -u code/main_wrn.py --use_tb_logger --params data_path="{{ data_path }}" \
-        seed=17 num_epochs={{ num_epochs }} \
-        batch_size=512 final_weight={{ final_weight }} dropout_p={{ dropout_p }} \
+        model=FasterWideResNet \
+        seed=5 num_epochs={{ num_epochs }} \
+        batch_size={{ batch_size }} \
+        weight_decay={{ weight_decay }} \
+        final_weight={{ final_weight }} dropout_p={{ dropout_p }} \
         lr_param_group_0="[(0, 0.0), ({{ lr_param_group_0_e }}, {{ lr_param_group_0_v }}), ({{ num_epochs }}, 0.0)]" \
         lr_param_group_1="[(0, 0.0), ({{ lr_param_group_1_e }}, {{ lr_param_group_1_v }}), ({{ num_epochs }}, 0.0)]" \
         lr_param_group_2="[(0, 0.0), ({{ lr_param_group_2_e }}, {{ lr_param_group_2_v }}), ({{ num_epochs }}, 0.0)]" \

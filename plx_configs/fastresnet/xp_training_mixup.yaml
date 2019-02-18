@@ -17,10 +17,10 @@ build:
 
 declarations:
   data_path: "/data/ssd/cifar10"
-  num_epochs: 24
+  num_epochs: 18
 
   enable_mixup: "True"
-  mixup_proba: 0.5
+  mixup_proba: 1.0
   mixup_alpha: 1.0
   
 

@@ -8,11 +8,10 @@ class FastWideResNet(nn.Module):
         super(FastWideResNet, self).__init__()
         assert (depth - 4) % 6 == 0, "Depth should be 6 * n + 4"
         self.width = width
-        self.depth = depth
         self.final_weight = final_weight
         self.dropout_p = dropout_p
 
-        n = (self.depth - 4) // 6
+        n = (depth - 4) // 6
         widths = [int(v * self.width) for v in (16, 32, 64)]
 
         self.prep = nn.Conv2d(3, 16, kernel_size=3, padding=1, bias=False)
@@ -39,7 +38,85 @@ class FastWideResNet(nn.Module):
             downsample = nn.Conv2d(inplanes, outplanes, kernel_size=1, stride=stride, bias=False)
 
         layers = [FastWRNBlock(inplanes, outplanes, stride=stride, downsample=downsample, dropout_p=self.dropout_p)]
-        for i in range(1, n):
+        for _ in range(1, n):
+            layers.append(FastWRNBlock(outplanes, outplanes, stride=1, dropout_p=self.dropout_p))
+
+        return nn.Sequential(*layers)
+        
+    def forward(self, x):
+        x = self.prep(x)
+        x = self.group0(x)
+        x = self.group1(x)
+        x = self.group2(x)                
+        x = self.bn(x)
+        x = self.relu(x)
+        
+        x = self.avgpool(x)
+        x = x.view(x.size(0), -1)
+        y = self.fc(x)
+        return y * self.final_weight
+
+
+class FasterWideResNet(nn.Module):
+    
+    def __init__(self, final_weight=1.0, dropout_p=None, **kwargs):
+        super(FasterWideResNet, self).__init__()        
+        self.final_weight = final_weight
+        self.dropout_p = dropout_p
+
+        self.prep = nn.Conv2d(3, 32, kernel_size=3, padding=1, bias=False)
+
+        self.group0 = nn.Sequential(
+            FastWRNBlock(32, 32, stride=1, 
+                         downsample=None, 
+                         dropout_p=self.dropout_p),
+
+            nn.BatchNorm2d(32),
+            nn.ReLU(True),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1, bias=False),
+
+            FastWRNBlock(64, 64, stride=1, 
+                         downsample=None,
+                         dropout_p=self.dropout_p)
+        )  
+        self.group1 = nn.Sequential(
+            nn.BatchNorm2d(64),
+            nn.ReLU(True),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1, bias=False),
+
+            FastWRNBlock(128, 128, stride=1, 
+                         downsample=None,
+                         dropout_p=self.dropout_p)
+        )
+        self.group2 = nn.Sequential(
+            nn.BatchNorm2d(128),
+            nn.ReLU(True),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1, bias=False),
+
+            FastWRNBlock(256, 256, stride=1, 
+                         downsample=None,
+                         dropout_p=self.dropout_p)
+        )
+        
+        self.bn = nn.BatchNorm2d(256)
+        self.relu = nn.ReLU(True)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(256, 10)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+    
+    def _make_group(self, inplanes, outplanes, n, stride):
+        downsample = None
+        if stride != 1 or inplanes != outplanes:
+            downsample = nn.Conv2d(inplanes, outplanes, kernel_size=1, stride=stride, bias=False)
+
+        layers = [FastWRNBlock(inplanes, outplanes, stride=stride, downsample=downsample, dropout_p=self.dropout_p)]
+        for _ in range(1, n):
             layers.append(FastWRNBlock(outplanes, outplanes, stride=1, dropout_p=self.dropout_p))
 
         return nn.Sequential(*layers)

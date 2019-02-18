@@ -19,21 +19,26 @@ declarations:
   data_path: "/data/ssd/cifar10"
   num_epochs: 18
   dropout_p: "None"
-  final_weight: 1.0
+  final_weight: 1.2
+  batch_size: 512
+  weight_decay: 0.1
   width: 4
   depth: 10
+
 
 run:
   cmd:
     - export PATH=$PATH:/usr/local/nvidia/bin && nvidia-smi
     - export TB_LOGGER_PATH=$POLYAXON_RUN_OUTPUTS_PATH
     - python -u code/main_wrn.py --use_tb_logger --params data_path="{{ data_path }}" \
-        seed=17 num_epochs={{ num_epochs }} \
-        batch_size=512 width={{ width }} depth={{ depth }} \
+        model=FasterWideResNet \
+        seed=5 num_epochs={{ num_epochs }} \
+        batch_size={{ batch_size }} \
+        weight_decay={{ weight_decay }} \
         final_weight={{ final_weight }} dropout_p={{ dropout_p }} \
-        lr_param_group_0="[(0, 0.0), (4, 0.4), ({{ num_epochs }}, 0.0)]" \
-        lr_param_group_1="[(0, 0.0), (4, 0.4), ({{ num_epochs }}, 0.0)]" \
-        lr_param_group_2="[(0, 0.0), (4, 0.4), ({{ num_epochs }}, 0.0)]" \
-        lr_param_group_3="[(0, 0.0), (4, 0.4), ({{ num_epochs }}, 0.0)]" \
-        lr_param_group_4="[(0, 0.0), (4, 0.4), ({{ num_epochs }}, 0.0)]" \
-        lr_param_group_5="[(0, 0.0), (4, 0.4), ({{ num_epochs }}, 0.0)]"
+        lr_param_group_0="[(0, 0.0), (6, 0.4), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_1="[(0, 0.0), (6, 0.4), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_2="[(0, 0.0), (6, 0.4), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_3="[(0, 0.0), (6, 0.4), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_4="[(0, 0.0), (6, 0.4), ({{ num_epochs }}, 0.0)]" \
+        lr_param_group_5="[(0, 0.0), (6, 0.4), ({{ num_epochs }}, 0.0)]"

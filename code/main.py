@@ -20,7 +20,7 @@ from ignite._utils import convert_tensor
 
 from ignite.contrib.handlers import ProgressBar
 
-from models import FastResnet, FastWideResNet, seq_conv_bn, conv_bn_elu    
+from models import FastResnet, seq_conv_bn, conv_bn_elu    
 from dataflow import get_fast_train_test_loaders
 from dataflow import DynamicCrop, FlipLR, DynamicCutout
 from custom_logger import TableLogger
