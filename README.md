@@ -51,3 +51,9 @@ or on WRN model
 ```
 polyaxon run -u -f plx_configs/wrn/gp_hp_bo_training_wrn.yaml --name=gp_hp_bo_training_wrn --tags=lt_20,wrn
 ```
+
+
+
+## Experiments on Google Colab
+
+https://colab.research.google.com/drive/1W1_WEtatzyn32aPSrp4t5n66PuHQW6W8
